@@ -47,6 +47,8 @@ import com.mbientlab.metawear.app.help.HelpOptionAdapter;
 import com.mbientlab.metawear.module.NeoPixel;
 import com.mbientlab.metawear.module.NeoPixel.*;
 
+import java.util.Locale;
+
 /**
  * Created by etsai on 8/23/2015.
  */
@@ -156,16 +158,16 @@ public class NeoPixelFragment extends ModuleFragmentBase {
         });
 
         final EditText npStrandText= (EditText) view.findViewById(R.id.neopixel_strand_value);
-        npStrandText.setText(String.format("%d", npStrand));
+        npStrandText.setText(String.format(Locale.US, "%d", npStrand));
 
         final EditText dataPinText= (EditText) view.findViewById(R.id.neopixel_data_pin_value);
-        dataPinText.setText(String.format("%d", dataPin));
+        dataPinText.setText(String.format(Locale.US, "%d", dataPin));
 
         final EditText nLedText= (EditText) view.findViewById(R.id.neopixel_nleds_value);
-        nLedText.setText(String.format("%d", nLeds));
+        nLedText.setText(String.format(Locale.US, "%d", nLeds));
 
         final EditText rotPeriodText= (EditText) view.findViewById(R.id.neopixel_rot_period_value);
-        rotPeriodText.setText(String.format("%d", period));
+        rotPeriodText.setText(String.format(Locale.US, "%d", period));
 
         final TextInputLayout npStrandWrapper = (TextInputLayout) view.findViewById(R.id.neopixel_strand_wrapper);
 

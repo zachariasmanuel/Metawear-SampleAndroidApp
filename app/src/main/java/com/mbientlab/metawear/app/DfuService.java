@@ -29,33 +29,18 @@
  * contact MbientLab Inc, at www.mbientlab.com.
  */
 
-apply plugin: 'com.android.application'
+package com.mbientlab.metawear.app;
 
-android {
-    compileSdkVersion 23
-    buildToolsVersion "23.0.2"
+import android.app.Activity;
 
-    defaultConfig {
-        applicationId "com.mbientlab.metawear.app"
-        minSdkVersion 18
-        targetSdkVersion 23
-        versionCode 18
-        versionName "3.4.19"
+import no.nordicsemi.android.dfu.DfuBaseService;
+
+/**
+ * Created by etsai on 5/6/2016.
+ */
+public class DfuService extends DfuBaseService {
+    @Override
+    protected Class<? extends Activity> getNotificationTarget() {
+        return NotificationActivity.class;
     }
-    buildTypes {
-        release {
-            minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
-        }
-    }
-}
-
-dependencies {
-    compile fileTree(dir: 'libs', include: ['*.jar'])
-    compile 'com.mbientlab:metawear:2.6.0'
-    compile 'com.mbientlab.bletoolbox:scanner:0.2.3'
-    compile 'com.github.PhilJay:MPAndroidChart:v2.1.3'
-    compile 'no.nordicsemi.android:dfu:0.6.2'
-    compile 'com.android.support:appcompat-v7:23.2.0'
-    compile 'com.android.support:design:23.2.0'
 }

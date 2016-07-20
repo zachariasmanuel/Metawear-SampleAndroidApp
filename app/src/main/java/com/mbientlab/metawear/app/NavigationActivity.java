@@ -27,15 +27,13 @@ package com.mbientlab.metawear.app;
 import android.Manifest;
 import android.annotation.TargetApi;
 import android.app.Dialog;
-import android.app.Notification;
-import android.app.NotificationManager;
 import android.app.ProgressDialog;
 import android.bluetooth.BluetoothDevice;
 import android.content.ComponentName;
-import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.net.Uri;
@@ -43,6 +41,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
+import android.preference.PreferenceManager;
 import android.provider.MediaStore;
 import android.support.annotation.NonNull;
 import android.support.design.widget.FloatingActionButton;
@@ -62,7 +61,6 @@ import android.support.v7.app.ActionBarDrawerToggle;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
-import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -71,26 +69,30 @@ import com.mbientlab.metawear.AsyncOperation;
 import com.mbientlab.metawear.MetaWearBleService;
 import com.mbientlab.metawear.MetaWearBoard;
 import com.mbientlab.metawear.MetaWearBoard.ConnectionStateHandler;
-import com.mbientlab.metawear.MetaWearBoard.DfuProgressHandler;
 import com.mbientlab.metawear.UnsupportedModuleException;
 import com.mbientlab.metawear.app.ModuleFragmentBase.FragmentBus;
 import com.mbientlab.metawear.module.Debug;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.InputStream;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
+
+import no.nordicsemi.android.dfu.DfuBaseService;
+import no.nordicsemi.android.dfu.DfuProgressListener;
+import no.nordicsemi.android.dfu.DfuProgressListenerAdapter;
+import no.nordicsemi.android.dfu.DfuServiceListenerHelper;
+import no.nordicsemi.android.dfu.DfuSettingsConstants;
 
 public class NavigationActivity extends AppCompatActivity implements NavigationView.OnNavigationItemSelectedListener, ServiceConnection, FragmentBus, LoaderManager.LoaderCallbacks<Cursor> {
     public final static String EXTRA_BT_DEVICE= "com.mbientlab.metawear.app.NavigationActivity.EXTRA_BT_DEVICE";
 
     private static final int SELECT_FILE_REQ = 1, PERMISSION_REQUEST_READ_STORAGE= 2;
-    private static final String EXTRA_URI = "uri";
-    private final static String FRAGMENT_KEY= "com.mbientlab.metawear.app.NavigationActivity.FRAGMENT_KEY";
+    private static final String EXTRA_URI = "uri", FRAGMENT_KEY= "com.mbientlab.metawear.app.NavigationActivity.FRAGMENT_KEY",
+            DFU_PROGRESS_FRAGMENT_TAG= "com.mbientlab.metawear.app.NavigationActivity.DFU_PROGRESS_FRAGMENT_TAG";
     private final static Map<Integer, Class<? extends ModuleFragmentBase>> FRAGMENT_CLASSES;
+    private final static Map<String, String> EXTENSION_TO_APP_TYPE;
 
     static {
         Map<Integer, Class<? extends ModuleFragmentBase>> tempMap= new LinkedHashMap<>();
@@ -111,6 +113,11 @@ public class NavigationActivity extends AppCompatActivity implements NavigationV
         tempMap.put(R.id.nav_settings, SettingsFragment.class);
         tempMap.put(R.id.nav_temperature, TemperatureFragment.class);
         FRAGMENT_CLASSES= Collections.unmodifiableMap(tempMap);
+
+        EXTENSION_TO_APP_TYPE= new HashMap<>();
+        EXTENSION_TO_APP_TYPE.put("hex", DfuBaseService.MIME_TYPE_OCTET_STREAM);
+        EXTENSION_TO_APP_TYPE.put("bin", DfuBaseService.MIME_TYPE_OCTET_STREAM);
+        EXTENSION_TO_APP_TYPE.put("zip", DfuBaseService.MIME_TYPE_ZIP);
     }
 
     public static class ReconnectDialogFragment extends DialogFragment implements  ServiceConnection {
@@ -194,12 +201,19 @@ public class NavigationActivity extends AppCompatActivity implements NavigationV
         }
     }
 
+    private static String getExtension(String path) {
+        int i= path.lastIndexOf('.');
+        return i >= 0 ? path.substring(i + 1) : null;
+    }
+
     private final String RECONNECT_DIALOG_TAG= "reconnect_dialog_tag";
     private final Handler taskScheduler = new Handler();
     private BluetoothDevice btDevice;
     private MetaWearBoard mwBoard;
     private Fragment currentFragment= null;
     private Uri fileStreamUri;
+    private String fileName;
+    private Intent dfuParameters= null;
 
     private final ConnectionStateHandler connectionHandler= new MetaWearBoard.ConnectionStateHandler() {
         @Override
@@ -210,7 +224,11 @@ public class NavigationActivity extends AppCompatActivity implements NavigationV
 
         @Override
         public void disconnected() {
-            attemptReconnect();
+            if (dfuParameters != null) {
+                startService(dfuParameters);
+            } else {
+                attemptReconnect();
+            }
         }
 
         @Override
@@ -219,8 +237,39 @@ public class NavigationActivity extends AppCompatActivity implements NavigationV
             if (reconnectFragment != null) {
                 mwBoard.connect();
             } else {
-                attemptReconnect();
+                if (dfuParameters != null) {
+                    startService(dfuParameters);
+                } else {
+                    attemptReconnect();
+                }
             }
+        }
+    };
+    private final DfuProgressListener dfuProgressListener= new DfuProgressListenerAdapter() {
+        @Override
+        public void onProgressChanged(String deviceAddress, int percent, float speed, float avgSpeed, int currentPart, int partsTotal) {
+            ((DfuProgressFragment) getSupportFragmentManager().findFragmentByTag(DFU_PROGRESS_FRAGMENT_TAG)).updateProgress(percent);
+        }
+
+        @Override
+        public void onDfuCompleted(String deviceAddress) {
+            ((DialogFragment) getSupportFragmentManager().findFragmentByTag(DFU_PROGRESS_FRAGMENT_TAG)).dismiss();
+            Snackbar.make(NavigationActivity.this.findViewById(R.id.drawer_layout), R.string.message_dfu_success, Snackbar.LENGTH_LONG).show();
+            resetConnectionStateHandler(5000L);
+        }
+
+        @Override
+        public void onDfuAborted(String deviceAddress) {
+            ((DialogFragment) getSupportFragmentManager().findFragmentByTag(DFU_PROGRESS_FRAGMENT_TAG)).dismiss();
+            Snackbar.make(NavigationActivity.this.findViewById(R.id.drawer_layout), R.string.error_dfu_aborted, Snackbar.LENGTH_LONG).show();
+            resetConnectionStateHandler(5000L);
+        }
+
+        @Override
+        public void onError(String deviceAddress, int error, int errorType, String message) {
+            ((DialogFragment) getSupportFragmentManager().findFragmentByTag(DFU_PROGRESS_FRAGMENT_TAG)).dismiss();
+            Snackbar.make(NavigationActivity.this.findViewById(R.id.drawer_layout), message, Snackbar.LENGTH_LONG).show();
+            resetConnectionStateHandler(5000L);
         }
     };
 
@@ -255,78 +304,86 @@ public class NavigationActivity extends AppCompatActivity implements NavigationV
         attemptReconnect(delay);
     }
 
+    private void addMimeType(String path) {
+        String mimeType= EXTENSION_TO_APP_TYPE.get(getExtension(path));
+        if (mimeType == null) {
+            mimeType= EXTENSION_TO_APP_TYPE.get(getExtension(fileName));
+        }
+        if (mimeType.equals(DfuService.MIME_TYPE_OCTET_STREAM)) {
+            dfuParameters.putExtra(DfuBaseService.EXTRA_FILE_TYPE, DfuBaseService.TYPE_APPLICATION);
+        } else {
+            dfuParameters.putExtra(DfuBaseService.EXTRA_FILE_TYPE, DfuBaseService.TYPE_AUTO);
+        }
+
+        dfuParameters.putExtra(DfuBaseService.EXTRA_FILE_MIME_TYPE, mimeType);
+    }
     @Override
-    public void initiateDfu(final InputStream stream) {
-        final String DFU_PROGRESS_FRAGMENT_TAG= "dfu_progress_popup";
-        final NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-        final Notification.Builder checkpointNotifyBuilder = new Notification.Builder(NavigationActivity.this).setSmallIcon(android.R.drawable.stat_sys_upload)
-                .setOnlyAlertOnce(true).setOngoing(true).setProgress(0, 0, true);
-        final Notification.Builder progressNotifyBuilder = new Notification.Builder(NavigationActivity.this).setSmallIcon(android.R.drawable.stat_sys_upload)
-                .setOnlyAlertOnce(true).setOngoing(true).setContentTitle(getString(R.string.notify_dfu_uploading));
-        final int NOTIFICATION_ID = 1024;
+    public void initiateDfu(final Object path) {
+        dfuParameters = new Intent(this, DfuService.class);
 
-        final DfuProgressHandler handler = new DfuProgressHandler() {
-            @Override
-            public void reachedCheckpoint(State dfuState) {
-                switch (dfuState) {
-                    case INITIALIZING:
-                        checkpointNotifyBuilder.setContentTitle(getString(R.string.notify_dfu_bootloader));
-                        break;
-                    case STARTING:
-                        checkpointNotifyBuilder.setContentTitle(getString(R.string.notify_dfu_starting));
-                        break;
-                    case VALIDATING:
-                        checkpointNotifyBuilder.setContentTitle(getString(R.string.notify_dfu_validating));
-                        break;
-                    case DISCONNECTING:
-                        checkpointNotifyBuilder.setContentTitle(getString(R.string.notify_dfu_disconnecting));
-                        break;
-                }
+        dfuParameters.putExtra(DfuBaseService.EXTRA_DEVICE_ADDRESS, btDevice.getAddress());
+        dfuParameters.putExtra(DfuBaseService.EXTRA_DEVICE_NAME, btDevice.getName());
 
-                manager.notify(NOTIFICATION_ID, checkpointNotifyBuilder.build());
-            }
+        // Init packet is required by Bootloader/DFU from SDK 7.0+ if HEX or BIN file is given above.
+        // In case of a ZIP file, the init packet (a DAT file) must be included inside the ZIP file.
+        //service.putExtra(NordicDfuService.EXTRA_INIT_FILE_PATH, mInitFilePath);
+        //service.putExtra(NordicDfuService.EXTRA_INIT_FILE_URI, mInitFileStreamUri);
 
-            @Override
-            public void receivedUploadProgress(int progress) {
-                progressNotifyBuilder.setContentText(String.format("%d%%", progress)).setProgress(100, progress, false);
-                manager.notify(NOTIFICATION_ID, progressNotifyBuilder.build());
-                ((DfuProgressFragment) getSupportFragmentManager().findFragmentByTag(DFU_PROGRESS_FRAGMENT_TAG)).updateProgress(progress);
-            }
-        };
+        dfuParameters.putExtra(DfuBaseService.EXTRA_KEEP_BOND, false);
+        if (path instanceof File) {
+            File filePath= (File) path;
 
+            addMimeType(filePath.getAbsolutePath());
+            dfuParameters.putExtra(DfuBaseService.EXTRA_FILE_PATH, filePath);
+        } else if (path instanceof Uri){
+            Uri uriPath= (Uri) path;
+
+            addMimeType(uriPath.toString());
+            dfuParameters.putExtra(DfuBaseService.EXTRA_FILE_URI, uriPath);
+        } else if (path != null) {
+            Snackbar.make(NavigationActivity.this.findViewById(R.id.drawer_layout), R.string.error_firmware_path_type, Snackbar.LENGTH_LONG).show();
+            return;
+        }
 
         taskScheduler.post(new Runnable() {
             @Override
             public void run() {
-                DfuProgressFragment.newInstance((stream != null ? R.string.message_manual_dfu : R.string.message_dfu)).show(getSupportFragmentManager(), DFU_PROGRESS_FRAGMENT_TAG);
-                (stream != null ? mwBoard.updateFirmware(stream, handler) : mwBoard.updateFirmware(handler)).onComplete(new AsyncOperation.CompletionHandler<Void>() {
-                    final Notification.Builder builder = new Notification.Builder(NavigationActivity.this).setOnlyAlertOnce(true)
-                            .setOngoing(false).setAutoCancel(true);
+                if (path == null) {
+                    mwBoard.downloadLatestFirmware().onComplete(new AsyncOperation.CompletionHandler<File>() {
+                        @Override
+                        public void success(File result) {
+                            DfuProgressFragment.newInstance(R.string.message_dfu).show(getSupportFragmentManager(), DFU_PROGRESS_FRAGMENT_TAG);
+                            dfuParameters.putExtra(DfuBaseService.EXTRA_FILE_PATH, result.getAbsolutePath());
+                            addMimeType(result.getAbsolutePath());
 
-                    @Override
-                    public void success(Void result) {
-                        ((DialogFragment) getSupportFragmentManager().findFragmentByTag(DFU_PROGRESS_FRAGMENT_TAG)).dismiss();
-                        builder.setContentTitle(getString(R.string.notify_dfu_success)).setSmallIcon(android.R.drawable.stat_sys_upload_done);
-                        manager.notify(NOTIFICATION_ID, builder.build());
+                            if (mwBoard.inMetaBootMode()) {
+                                mwBoard.disconnect();
+                            } else {
+                                try {
+                                    mwBoard.getModule(Debug.class).jumpToBootloader();
+                                } catch (UnsupportedModuleException e) {
+                                    Snackbar.make(NavigationActivity.this.findViewById(R.id.drawer_layout), R.string.error_bootloader, Snackbar.LENGTH_LONG).show();
+                                }
+                            }
+                        }
 
-                        Snackbar.make(NavigationActivity.this.findViewById(R.id.drawer_layout), R.string.message_dfu_success, Snackbar.LENGTH_LONG).show();
-                        resetConnectionStateHandler(5000L);
+                        @Override
+                        public void failure(Throwable error) {
+                            Snackbar.make(NavigationActivity.this.findViewById(R.id.drawer_layout), error.getLocalizedMessage(), Snackbar.LENGTH_LONG).show();
+                        }
+                    });
+                } else{
+                    DfuProgressFragment.newInstance(R.string.message_manual_dfu).show(getSupportFragmentManager(), DFU_PROGRESS_FRAGMENT_TAG);
+                    if (mwBoard.inMetaBootMode()) {
+                        mwBoard.disconnect();
+                    } else {
+                        try {
+                            mwBoard.getModule(Debug.class).jumpToBootloader();
+                        } catch (UnsupportedModuleException e) {
+                            Snackbar.make(NavigationActivity.this.findViewById(R.id.drawer_layout), R.string.error_bootloader, Snackbar.LENGTH_LONG).show();
+                        }
                     }
-
-                    @Override
-                    public void failure(Throwable error) {
-                        Log.e("MetaWearApp", "Firmware update failed", error);
-
-                        Throwable cause = error.getCause() == null ? error : error.getCause();
-                        ((DialogFragment) getSupportFragmentManager().findFragmentByTag(DFU_PROGRESS_FRAGMENT_TAG)).dismiss();
-                        builder.setContentTitle(getString(R.string.notify_dfu_fail)).setSmallIcon(android.R.drawable.ic_dialog_alert)
-                                .setContentText(cause.getLocalizedMessage());
-                        manager.notify(NOTIFICATION_ID, builder.build());
-
-                        Snackbar.make(NavigationActivity.this.findViewById(R.id.drawer_layout), error.getLocalizedMessage(), Snackbar.LENGTH_LONG).show();
-                        resetConnectionStateHandler(5000L);
-                    }
-                });
+                }
             }
         });
     }
@@ -356,8 +413,7 @@ public class NavigationActivity extends AppCompatActivity implements NavigationV
         });
 
         DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
-        ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
-                this, drawer, toolbar, R.string.navigation_drawer_open, R.string.navigation_drawer_close);
+        ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(this, drawer, toolbar, R.string.navigation_drawer_open, R.string.navigation_drawer_close);
         drawer.setDrawerListener(toggle);
         toggle.syncState();
 
@@ -372,6 +428,11 @@ public class NavigationActivity extends AppCompatActivity implements NavigationV
 
         btDevice= getIntent().getParcelableExtra(EXTRA_BT_DEVICE);
         getApplicationContext().bindService(new Intent(this, MetaWearBleService.class), this, BIND_AUTO_CREATE);
+
+        final SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this);
+        preferences.edit().putBoolean(DfuSettingsConstants.SETTINGS_ASSUME_DFU_NODE, true).apply();
+
+        DfuServiceListenerHelper.registerProgressListener(this, dfuProgressListener);
     }
 
     @Override
@@ -401,11 +462,7 @@ public class NavigationActivity extends AppCompatActivity implements NavigationV
                  */
                 if (uri.getScheme().equals("file")) {
                     // the direct path to the file has been returned
-                    try {
-                        initiateDfu(new FileInputStream(new File(uri.getPath())));
-                    } catch (FileNotFoundException e) {
-                        Snackbar.make(findViewById(R.id.drawer_layout), R.string.error_missing_firmware, Snackbar.LENGTH_LONG).show();
-                    }
+                    initiateDfu(new File(uri.getPath()));
                 } else if (uri.getScheme().equals("content")) {
                     fileStreamUri= uri;
 
@@ -536,18 +593,14 @@ public class NavigationActivity extends AppCompatActivity implements NavigationV
             /*
              * Here we have to check the column indexes by name as we have requested for all. The order may be different.
              */
-            final String fileName = data.getString(data.getColumnIndex(MediaStore.MediaColumns.DISPLAY_NAME)/* 0 DISPLAY_NAME */);
-            final int fileSize = data.getInt(data.getColumnIndex(MediaStore.MediaColumns.SIZE) /* 1 SIZE */);
+            fileName = data.getString(data.getColumnIndex(MediaStore.MediaColumns.DISPLAY_NAME)/* 0 DISPLAY_NAME */);
+            //final int fileSize = data.getInt(data.getColumnIndex(MediaStore.MediaColumns.SIZE) /* 1 SIZE */);
 
             final int dataIndex = data.getColumnIndex(MediaStore.MediaColumns.DATA);
-            try {
-                if (dataIndex != -1) {
-                    initiateDfu(new FileInputStream(new File(data.getString(dataIndex /*2 DATA */))));
-                } else {
-                    initiateDfu(getContentResolver().openInputStream(fileStreamUri));
-                }
-            } catch (FileNotFoundException e) {
-                Snackbar.make(findViewById(R.id.drawer_layout), R.string.error_missing_firmware, Snackbar.LENGTH_LONG).show();
+            if (dataIndex != -1) {
+                initiateDfu(new File(data.getString(dataIndex /*2 DATA */)));
+            } else {
+                initiateDfu(fileStreamUri);
             }
         }
     }
@@ -563,8 +616,8 @@ public class NavigationActivity extends AppCompatActivity implements NavigationV
      */
     private void startContentSelectionIntent() {
         final Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
-        intent.setType("application/octet-stream");
-        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("*/*")
+                .addCategory(Intent.CATEGORY_OPENABLE);
         startActivityForResult(intent, SELECT_FILE_REQ);
     }
 
@@ -593,7 +646,7 @@ public class NavigationActivity extends AppCompatActivity implements NavigationV
     }
 
     @Override
-    public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults) {
+    public void onRequestPermissionsResult(int requestCode, @NonNull String permissions[], @NonNull int[] grantResults) {
         switch (requestCode) {
             case PERMISSION_REQUEST_READ_STORAGE: {
                 if (grantResults[0] != PackageManager.PERMISSION_GRANTED) {

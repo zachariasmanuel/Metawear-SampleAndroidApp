@@ -59,6 +59,8 @@ import com.mbientlab.metawear.module.Gpio.AnalogReadMode;
 import com.mbientlab.metawear.module.Gpio.PullMode;
 import com.mbientlab.metawear.module.Timer;
 
+import java.util.Locale;
+
 /**
  * Created by etsai on 8/21/2015.
  */
@@ -92,7 +94,7 @@ public class GpioFragment extends SingleDataSensorFragment {
                         data.addXValue("0");
                         startTime= System.currentTimeMillis();
                     } else {
-                        data.addXValue(String.format("%.2f", sampleCount * samplingPeriod));
+                        data.addXValue(String.format(Locale.US, "%.2f", sampleCount * samplingPeriod));
                     }
 
                     data.addEntry(new Entry(gpioValue, sampleCount), 0);
@@ -156,7 +158,7 @@ public class GpioFragment extends SingleDataSensorFragment {
         accRangeSelection.setSelection(readMode);
 
         EditText gpioPinText= (EditText) view.findViewById(R.id.gpio_pin_value);
-        gpioPinText.setText(String.format("%d", gpioPin));
+        gpioPinText.setText(String.format(Locale.US, "%d", gpioPin));
         gpioPinText.addTextChangedListener(new TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {
@@ -253,7 +255,7 @@ public class GpioFragment extends SingleDataSensorFragment {
                         .onComplete(GpioStreamSetup);
                 break;
         }
-        filenameExtraString= String.format("%s_pin_%d", csvHeaderDataName, gpioPin);
+        filenameExtraString= String.format(Locale.US, "%s_pin_%d", csvHeaderDataName, gpioPin);
         timerModule.scheduleTask(new Timer.Task() {
             @Override
             public void commands() {

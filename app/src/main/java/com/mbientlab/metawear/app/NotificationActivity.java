@@ -29,33 +29,30 @@
  * contact MbientLab Inc, at www.mbientlab.com.
  */
 
-apply plugin: 'com.android.application'
+package com.mbientlab.metawear.app;
 
-android {
-    compileSdkVersion 23
-    buildToolsVersion "23.0.2"
+import android.content.Intent;
+import android.os.Bundle;
+import android.support.v7.app.AppCompatActivity;
 
-    defaultConfig {
-        applicationId "com.mbientlab.metawear.app"
-        minSdkVersion 18
-        targetSdkVersion 23
-        versionCode 18
-        versionName "3.4.19"
-    }
-    buildTypes {
-        release {
-            minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+/**
+ * Created by etsai on 5/6/2016.
+ */
+public class NotificationActivity extends AppCompatActivity {
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+
+        // If this activity is the root activity of the task, the app is not running
+        if (isTaskRoot()) {
+            // Start the app before finishing
+            final Intent intent = new Intent(this, NavigationActivity.class);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            intent.putExtras(getIntent().getExtras()); // copy all extras
+            startActivity(intent);
         }
-    }
-}
 
-dependencies {
-    compile fileTree(dir: 'libs', include: ['*.jar'])
-    compile 'com.mbientlab:metawear:2.6.0'
-    compile 'com.mbientlab.bletoolbox:scanner:0.2.3'
-    compile 'com.github.PhilJay:MPAndroidChart:v2.1.3'
-    compile 'no.nordicsemi.android:dfu:0.6.2'
-    compile 'com.android.support:appcompat-v7:23.2.0'
-    compile 'com.android.support:design:23.2.0'
+        // Now finish, which will drop you to the activity at which you were at the top of the task stack
+        finish();
+    }
 }

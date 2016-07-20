@@ -49,6 +49,8 @@ import com.mbientlab.metawear.app.help.HelpOption;
 import com.mbientlab.metawear.app.help.HelpOptionAdapter;
 import com.mbientlab.metawear.module.Ltr329AmbientLight;
 
+import java.util.Locale;
+
 import static com.mbientlab.metawear.module.Ltr329AmbientLight.*;
 
 /**
@@ -154,7 +156,7 @@ public class AmbientLightFragment extends SingleDataSensorFragment {
                                     data.addXValue("0");
                                     startTime= System.currentTimeMillis();
                                 } else {
-                                    data.addXValue(String.format("%.2f", sampleCount * samplingPeriod));
+                                    data.addXValue(String.format(Locale.US, "%.2f", sampleCount * samplingPeriod));
                                 }
 
                                 data.addEntry(new Entry(lux, sampleCount), 0);

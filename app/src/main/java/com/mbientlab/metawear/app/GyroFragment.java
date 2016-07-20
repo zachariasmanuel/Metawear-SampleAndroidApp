@@ -44,7 +44,6 @@ import com.mbientlab.metawear.RouteManager;
 import com.mbientlab.metawear.UnsupportedModuleException;
 import com.mbientlab.metawear.app.help.HelpOption;
 import com.mbientlab.metawear.app.help.HelpOptionAdapter;
-import com.mbientlab.metawear.data.Units;
 import com.mbientlab.metawear.module.Gyro;
 
 /**

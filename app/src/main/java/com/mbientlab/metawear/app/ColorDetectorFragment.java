@@ -57,6 +57,7 @@ import java.io.FileOutputStream;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Created by etsai on 2/10/2016.
@@ -133,7 +134,7 @@ public class ColorDetectorFragment extends SensorFragment {
                                     data.addXValue("0");
                                     startTime = System.currentTimeMillis();
                                 } else {
-                                    data.addXValue(String.format("%.2f", (sampleCount * COLOR_SAMPLE_PERIOD) / 1000.f));
+                                    data.addXValue(String.format(Locale.US, "%.2f", (sampleCount * COLOR_SAMPLE_PERIOD) / 1000.f));
                                 }
 
                                 Tcs34725ColorDetector.ColorAdc adc= message.getData(Tcs34725ColorDetector.ColorAdc.class);
@@ -196,7 +197,7 @@ public class ColorDetectorFragment extends SensorFragment {
     @Override
     protected String saveData() {
         final String CSV_HEADER = String.format("time,clear,red,green,blue%n");
-        String filename = String.format("%s_%tY%<tm%<td-%<tH%<tM%<tS%<tL.csv", getContext().getString(sensorResId), Calendar.getInstance());
+        String filename = String.format(Locale.US, "%s_%tY%<tm%<td-%<tH%<tM%<tS%<tL.csv", getContext().getString(sensorResId), Calendar.getInstance());
 
         try {
             FileOutputStream fos = getActivity().openFileOutput(filename, Context.MODE_PRIVATE);
@@ -206,7 +207,7 @@ public class ColorDetectorFragment extends SensorFragment {
             LineDataSet clearDataSet = data.getDataSetByIndex(0), redDataSet = data.getDataSetByIndex(1),
                     greenDataSet = data.getDataSetByIndex(2), blueDataSet = data.getDataSetByIndex(3);
             for (int i = 0; i < data.getXValCount(); i++) {
-                fos.write(String.format("%.3f,%.3f,%.3f,%.3f,%.3f%n", (i * COLOR_SAMPLE_PERIOD) / 1000.f,
+                fos.write(String.format(Locale.US, "%.3f,%.3f,%.3f,%.3f,%.3f%n", (i * COLOR_SAMPLE_PERIOD) / 1000.f,
                         clearDataSet.getEntryForXIndex(i).getVal(), redDataSet.getEntryForXIndex(i).getVal(),
                         greenDataSet.getEntryForXIndex(i).getVal(), blueDataSet.getEntryForXIndex(i).getVal()).getBytes());
             }

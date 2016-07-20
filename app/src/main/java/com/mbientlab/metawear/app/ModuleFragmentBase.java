@@ -51,7 +51,6 @@ import com.mbientlab.metawear.MetaWearBoard;
 import com.mbientlab.metawear.UnsupportedModuleException;
 import com.mbientlab.metawear.app.help.HelpOptionAdapter;
 
-import java.io.InputStream;
 import java.util.Locale;
 
 /**
@@ -61,7 +60,7 @@ public abstract class ModuleFragmentBase extends Fragment implements ServiceConn
     public interface FragmentBus {
         BluetoothDevice getBtDevice();
         void resetConnectionStateHandler(long delay);
-        void initiateDfu(InputStream path);
+        void initiateDfu(Object path);
     }
 
     private boolean boardReady= false;

@@ -31,8 +31,6 @@
 
 package com.mbientlab.metawear.app;
 
-import android.Manifest;
-import android.content.DialogInterface;
 import android.os.Bundle;
 import android.support.design.widget.TextInputLayout;
 import android.support.v7.app.AlertDialog;
@@ -60,6 +58,7 @@ import com.mbientlab.metawear.module.Timer;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Created by etsai on 8/19/2015.
@@ -89,7 +88,7 @@ public class TemperatureFragment extends SingleDataSensorFragment {
                 data.addXValue("0");
                 startTime = System.currentTimeMillis();
             } else {
-                data.addXValue(String.format("%.2f", sampleCount * samplingPeriod));
+                data.addXValue(String.format(Locale.US, "%.2f", sampleCount * samplingPeriod));
             }
 
             data.addEntry(new Entry(celsius, sampleCount), 0);
@@ -174,7 +173,7 @@ public class TemperatureFragment extends SingleDataSensorFragment {
         }
 
         final EditText extThermPinText= (EditText) view.findViewById(R.id.ext_thermistor_data_pin);
-        extThermPinText.setText(String.format("%d", gpioDataPin));
+        extThermPinText.setText(String.format(Locale.US, "%d", gpioDataPin));
         extThermPinText.addTextChangedListener(new TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {
@@ -199,7 +198,7 @@ public class TemperatureFragment extends SingleDataSensorFragment {
         });
 
         final EditText pulldownPinText= (EditText) view.findViewById(R.id.ext_thermistor_pulldown_pin);
-        pulldownPinText.setText(String.format("%d", gpioPulldownPin));
+        pulldownPinText.setText(String.format(Locale.US, "%d", gpioPulldownPin));
         pulldownPinText.addTextChangedListener(new TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {

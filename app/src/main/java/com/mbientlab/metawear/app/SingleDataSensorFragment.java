@@ -42,6 +42,7 @@ import java.io.FileOutputStream;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Created by etsai on 8/22/2015.
@@ -65,7 +66,7 @@ public abstract class SingleDataSensorFragment extends SensorFragment {
     @Override
     protected String saveData() {
         final String CSV_HEADER = String.format("time,%s%n", csvHeaderDataName);
-        String filename = String.format("%s_%tY%<tm%<td-%<tH%<tM%<tS%<tL.csv", getContext().getString(sensorResId), Calendar.getInstance());
+        String filename = String.format(Locale.US, "%s_%tY%<tm%<td-%<tH%<tM%<tS%<tL.csv", getContext().getString(sensorResId), Calendar.getInstance());
         if (!filenameExtraString.isEmpty()) {
             filename+= "_" + filenameExtraString;
         }
@@ -79,11 +80,11 @@ public abstract class SingleDataSensorFragment extends SensorFragment {
             LineDataSet tempDataSet = data.getDataSetByIndex(0);
             if (samplingPeriod < 0) {
                 for (int i = 0; i < chartXValues.size(); i++) {
-                    fos.write(String.format("%s,%.3f%n", chartXValues.get(i), tempDataSet.getEntryForXIndex(i).getVal()).getBytes());
+                    fos.write(String.format(Locale.US, "%s,%.3f%n", chartXValues.get(i), tempDataSet.getEntryForXIndex(i).getVal()).getBytes());
                 }
             } else {
                 for (int i = 0; i < data.getXValCount(); i++) {
-                    fos.write(String.format("%.3f,%.3f%n", i * samplingPeriod, tempDataSet.getEntryForXIndex(i).getVal()).getBytes());
+                    fos.write(String.format(Locale.US, "%.3f,%.3f%n", i * samplingPeriod, tempDataSet.getEntryForXIndex(i).getVal()).getBytes());
                 }
             }
             fos.close();

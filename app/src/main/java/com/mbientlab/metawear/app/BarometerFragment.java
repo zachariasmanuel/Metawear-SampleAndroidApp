@@ -52,6 +52,7 @@ import com.mbientlab.metawear.module.Bmp280Barometer.OversamplingMode;
 import java.io.FileOutputStream;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Locale;
 
 /**
  * Created by etsai on 8/22/2015.
@@ -80,7 +81,7 @@ public class BarometerFragment extends SensorFragment {
 
             LineData data = chart.getData();
             if (dataEntries.size() >= sampleCount) {
-                data.addXValue(String.format("%.2f", sampleCount * LIGHT_SAMPLE_PERIOD));
+                data.addXValue(String.format(Locale.US, "%.2f", sampleCount * LIGHT_SAMPLE_PERIOD));
                 sampleCount++;
             }
             data.addEntry(new Entry(pressureValue, sampleCount), setIndex);
@@ -166,7 +167,7 @@ public class BarometerFragment extends SensorFragment {
     @Override
     protected String saveData() {
         final String CSV_HEADER = String.format("time,pressure,altitude%n");
-        String filename = String.format("%s_%tY%<tm%<td-%<tH%<tM%<tS%<tL.csv", getContext().getString(sensorResId), Calendar.getInstance());
+        String filename = String.format(Locale.US, "%s_%tY%<tm%<td-%<tH%<tM%<tS%<tL.csv", getContext().getString(sensorResId), Calendar.getInstance());
 
         try {
             FileOutputStream fos = getActivity().openFileOutput(filename, Context.MODE_PRIVATE);
@@ -175,7 +176,7 @@ public class BarometerFragment extends SensorFragment {
             LineData data = chart.getLineData();
             LineDataSet pressureDataSet = data.getDataSetByIndex(0), altitudeDataSet = data.getDataSetByIndex(1);
             for (int i = 0; i < data.getXValCount(); i++) {
-                fos.write(String.format("%.3f,%.3f,%.3f%n", i * LIGHT_SAMPLE_PERIOD,
+                fos.write(String.format(Locale.US, "%.3f,%.3f,%.3f%n", i * LIGHT_SAMPLE_PERIOD,
                         pressureDataSet.getEntryForXIndex(i).getVal(),
                         altitudeDataSet.getEntryForXIndex(i).getVal()).getBytes());
             }

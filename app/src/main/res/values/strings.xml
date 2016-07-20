@@ -50,14 +50,6 @@
   <string name="title_connecting">Connecting</string>
   <string name="title_reconnect_attempt">Reconnecting</string>
 
-  <string name="notify_dfu_bootloader">Entering Bootloader Mode</string>
-  <string name="notify_dfu_starting">Starting Update</string>
-  <string name="notify_dfu_validating">Validating</string>
-  <string name="notify_dfu_disconnecting">Disconnecting</string>
-  <string name="notify_dfu_uploading">Uploading</string>
-  <string name="notify_dfu_success">DFU Succeeded</string>
-  <string name="notify_dfu_fail">DFU Failed</string>
-
   <string name="message_soft_reset">Soft reset issued</string>
   <string name="message_wait">Please wait</string>
   <string name="message_dfu_accept">A firmware update is available.  Do you wish to download the newest firmware version?</string>
@@ -76,6 +68,10 @@
   <string name="error_fragment_bus">must implement the FragmentBus interface</string>
   <string name="error_unsupported_module">module (sensor) is not supported on this board</string>
   <string name="error_missing_firmware">Cannot load selected firmware file</string>
+  <string name="error_firmware_path_type">Invalid firmware path type</string>
+  <string name="error_bootloader">Cannot switch to bootloader mode</string>
+  <string name="error_dfu_aborted">Firmware update aborted</string>
+  <string name="error_firmware_check">Active internet connection required to check for firmware updates</string>
 
   <string name="config_name_sampling_period">Sampling Period</string>
   <string name="config_desc_sampling_period">How often to sample data, in milliseconds</string>

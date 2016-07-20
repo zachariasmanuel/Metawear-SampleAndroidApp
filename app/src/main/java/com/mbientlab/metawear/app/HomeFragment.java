@@ -35,6 +35,7 @@ import android.app.Dialog;
 import android.content.DialogInterface;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
+import android.support.design.widget.Snackbar;
 import android.support.v4.app.DialogFragment;
 import android.support.v7.app.AlertDialog;
 import android.view.LayoutInflater;
@@ -51,6 +52,8 @@ import com.mbientlab.metawear.UnsupportedModuleException;
 import com.mbientlab.metawear.app.help.HelpOptionAdapter;
 import com.mbientlab.metawear.module.Led;
 import com.mbientlab.metawear.module.Switch;
+
+import java.util.Locale;
 
 /**
  * Created by etsai on 8/22/2015.
@@ -117,7 +120,7 @@ public class HomeFragment extends ModuleFragmentBase {
                 mwBoard.readRssi().onComplete(new AsyncOperation.CompletionHandler<Integer>() {
                     @Override
                     public void success(Integer result) {
-                        ((TextView) view.findViewById(R.id.board_rssi_value)).setText(String.format("%d dBm", result));
+                        ((TextView) view.findViewById(R.id.board_rssi_value)).setText(String.format(Locale.US, "%d dBm", result));
                     }
                 });
             }
@@ -128,7 +131,7 @@ public class HomeFragment extends ModuleFragmentBase {
                 mwBoard.readBatteryLevel().onComplete(new AsyncOperation.CompletionHandler<Byte>() {
                     @Override
                     public void success(Byte result) {
-                        ((TextView) view.findViewById(R.id.board_battery_level_value)).setText(String.format("%d", result));
+                        ((TextView) view.findViewById(R.id.board_battery_level_value)).setText(String.format(Locale.US, "%d", result));
                     }
 
                     @Override
@@ -153,6 +156,11 @@ public class HomeFragment extends ModuleFragmentBase {
                         }
 
                         builder.show();
+                    }
+
+                    @Override
+                    public void failure(Throwable error) {
+                        Snackbar.make(getActivity().findViewById(R.id.drawer_layout), R.string.error_firmware_check, Snackbar.LENGTH_LONG).show();
                     }
                 });
 

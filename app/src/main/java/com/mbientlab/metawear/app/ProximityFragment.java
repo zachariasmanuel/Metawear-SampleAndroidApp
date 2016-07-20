@@ -41,6 +41,8 @@ import com.mbientlab.metawear.app.help.HelpOptionAdapter;
 import com.mbientlab.metawear.module.Timer;
 import com.mbientlab.metawear.module.Tsl2671Proximity;
 
+import java.util.Locale;
+
 /**
  * Created by etsai on 2/23/2016.
  */
@@ -75,7 +77,7 @@ public class ProximityFragment extends SingleDataSensorFragment {
                                     data.addXValue("0");
                                     startTime = System.currentTimeMillis();
                                 } else {
-                                    data.addXValue(String.format("%.2f", sampleCount * samplingPeriod));
+                                    data.addXValue(String.format(Locale.US, "%.2f", sampleCount * samplingPeriod));
                                 }
 
                                 data.addEntry(new Entry(message.getData(Integer.class), sampleCount), 0);

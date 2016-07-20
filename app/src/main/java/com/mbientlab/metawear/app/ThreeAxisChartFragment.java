@@ -45,6 +45,7 @@ import com.mbientlab.metawear.data.CartesianFloat;
 import java.io.FileOutputStream;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Locale;
 
 /**
  * Created by etsai on 8/19/2015.
@@ -65,7 +66,7 @@ public abstract class ThreeAxisChartFragment extends SensorFragment {
 
                     LineData data = chart.getData();
 
-                    data.addXValue(String.format("%.2f", sampleCount * samplePeriod));
+                    data.addXValue(String.format(Locale.US, "%.2f", sampleCount * samplePeriod));
                     data.addEntry(new Entry(spin.x(), sampleCount), 0);
                     data.addEntry(new Entry(spin.y(), sampleCount), 1);
                     data.addEntry(new Entry(spin.z(), sampleCount), 2);
@@ -93,7 +94,7 @@ public abstract class ThreeAxisChartFragment extends SensorFragment {
     @Override
     protected String saveData() {
         final String CSV_HEADER = String.format("time,x-%s,y-%s,z-%s%n", dataType, dataType, dataType);
-        String filename = String.format("%s_%tY%<tm%<td-%<tH%<tM%<tS%<tL.csv", getContext().getString(sensorResId), Calendar.getInstance());
+        String filename = String.format(Locale.US, "%s_%tY%<tm%<td-%<tH%<tM%<tS%<tL.csv", getContext().getString(sensorResId), Calendar.getInstance());
 
         try {
             FileOutputStream fos = getActivity().openFileOutput(filename, Context.MODE_PRIVATE);
@@ -103,7 +104,7 @@ public abstract class ThreeAxisChartFragment extends SensorFragment {
             LineDataSet xSpinDataSet = data.getDataSetByIndex(0), ySpinDataSet = data.getDataSetByIndex(1),
                     zSpinDataSet = data.getDataSetByIndex(2);
             for (int i = 0; i < data.getXValCount(); i++) {
-                fos.write(String.format("%.3f,%.3f,%.3f,%.3f%n", i * samplePeriod,
+                fos.write(String.format(Locale.US, "%.3f,%.3f,%.3f,%.3f%n", i * samplePeriod,
                         xSpinDataSet.getEntryForXIndex(i).getVal(),
                         ySpinDataSet.getEntryForXIndex(i).getVal(),
                         zSpinDataSet.getEntryForXIndex(i).getVal()).getBytes());

@@ -73,7 +73,7 @@ public class I2CFragment extends ModuleFragmentBase {
 
         byte[] bytes= new byte[byteArrayString.length() / 2];
         for(int i= 0, j= 0; i < byteArrayString.length(); i+= 2, j++) {
-            bytes[j]= (byte) Short.parseShort(byteArrayString.substring(i, i + 2), 16);;
+            bytes[j]= (byte) Short.parseShort(byteArrayString.substring(i, i + 2), 16);
         }
 
         return bytes;
