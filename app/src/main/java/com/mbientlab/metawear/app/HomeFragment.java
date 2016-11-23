@@ -144,26 +144,23 @@ public class HomeFragment extends ModuleFragmentBase {
         view.findViewById(R.id.update_firmware).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                mwBoard.checkForFirmwareUpdate().onComplete(new AsyncOperation.CompletionHandler<Boolean>() {
-                    @Override
-                    public void success(Boolean result) {
-                        AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
-
-                        if (!result) {
-                            setupDfuDialog(builder, R.string.message_dfu_latest);
-                        } else {
-                            setupDfuDialog(builder, R.string.message_dfu_accept);
+                if (mwBoard.inMetaBootMode()) {
+                    fragBus.initiateDfu(null);
+                } else {
+                    mwBoard.checkForFirmwareUpdate().onComplete(new AsyncOperation.CompletionHandler<Boolean>() {
+                        @Override
+                        public void success(Boolean result) {
+                            AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
+                            setupDfuDialog(builder, !result ? R.string.message_dfu_latest : R.string.message_dfu_accept);
+                            builder.show();
                         }
 
-                        builder.show();
-                    }
-
-                    @Override
-                    public void failure(Throwable error) {
-                        Snackbar.make(getActivity().findViewById(R.id.drawer_layout), R.string.error_firmware_check, Snackbar.LENGTH_LONG).show();
-                    }
-                });
-
+                        @Override
+                        public void failure(Throwable error) {
+                            Snackbar.make(getActivity().findViewById(R.id.drawer_layout), error.getLocalizedMessage(), Snackbar.LENGTH_LONG).show();
+                        }
+                    });
+                }
             }
         });
     }

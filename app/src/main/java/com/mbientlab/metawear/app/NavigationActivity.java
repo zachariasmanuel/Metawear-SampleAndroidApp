@@ -72,6 +72,7 @@ import com.mbientlab.metawear.MetaWearBoard.ConnectionStateHandler;
 import com.mbientlab.metawear.UnsupportedModuleException;
 import com.mbientlab.metawear.app.ModuleFragmentBase.FragmentBus;
 import com.mbientlab.metawear.module.Debug;
+import com.mbientlab.metawear.module.SensorFusion;
 
 import java.io.File;
 import java.util.Collections;
@@ -110,6 +111,7 @@ public class NavigationActivity extends AppCompatActivity implements NavigationV
         tempMap.put(R.id.nav_magnetometer, MagnetometerFragment.class);
         tempMap.put(R.id.nav_neopixel, NeoPixelFragment.class);
         tempMap.put(R.id.nav_proximity, ProximityFragment.class);
+        tempMap.put(R.id.nav_sensor_fusion, SensorFusionFragment.class);
         tempMap.put(R.id.nav_settings, SettingsFragment.class);
         tempMap.put(R.id.nav_temperature, TemperatureFragment.class);
         FRAGMENT_CLASSES= Collections.unmodifiableMap(tempMap);
@@ -334,7 +336,7 @@ public class NavigationActivity extends AppCompatActivity implements NavigationV
             File filePath= (File) path;
 
             addMimeType(filePath.getAbsolutePath());
-            dfuParameters.putExtra(DfuBaseService.EXTRA_FILE_PATH, filePath);
+            dfuParameters.putExtra(DfuBaseService.EXTRA_FILE_PATH, filePath.getAbsolutePath());
         } else if (path instanceof Uri){
             Uri uriPath= (Uri) path;
 

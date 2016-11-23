@@ -39,6 +39,7 @@
         <item android:id="@+id/nav_magnetometer" android:title="@string/navigation_fragment_magnetometer" />
         <item android:id="@+id/nav_neopixel" android:title="@string/navigation_fragment_neopixel" />
         <item android:id="@+id/nav_proximity" android:title="@string/navigation_fragment_proximity" />
+        <item android:id="@+id/nav_sensor_fusion" android:title="@string/navigation_fragment_sensor_fusion" />
         <item android:id="@+id/nav_settings" android:title="@string/navigation_fragment_settings" />
         <item android:id="@+id/nav_temperature" android:title="@string/navigation_fragment_temperature" />
     </group>
