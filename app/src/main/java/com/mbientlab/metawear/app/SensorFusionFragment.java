@@ -34,6 +34,7 @@ package com.mbientlab.metawear.app;
 import android.content.Context;
 import android.graphics.Color;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
@@ -65,8 +66,9 @@ import java.util.Locale;
  */
 
 public class SensorFusionFragment extends SensorFragment {
-    private static final String STREAM_KEY= "sensor_fusion_stream";
-    private static final float SAMPLING_PERIOD = 1/100f;
+    private static final String STREAM_KEY = "sensor_fusion_stream";
+    private static final String STREAM_KEY_1 = "sensor_fusion_stream_1";
+    private static final float SAMPLING_PERIOD = 1 / 100f;
 
     private final ArrayList<Entry> x0 = new ArrayList<>(), x1 = new ArrayList<>(), x2 = new ArrayList<>(), x3 = new ArrayList<>();
     private SensorFusion sensorFusion;
@@ -93,7 +95,7 @@ public class SensorFusionFragment extends SensorFragment {
                 if (position == 0) {
                     leftAxis.setAxisMaxValue(1.f);
                     leftAxis.setAxisMinValue(-1.f);
-                } else  {
+                } else {
                     leftAxis.setAxisMaxValue(360f);
                     leftAxis.setAxisMinValue(-360f);
                 }
@@ -107,73 +109,69 @@ public class SensorFusionFragment extends SensorFragment {
             }
         });
 
-        ArrayAdapter<CharSequence> spinnerAdapter= ArrayAdapter.createFromResource(getContext(), R.array.values_fusion_data, android.R.layout.simple_spinner_item);
+        ArrayAdapter<CharSequence> spinnerAdapter = ArrayAdapter.createFromResource(getContext(), R.array.values_fusion_data, android.R.layout.simple_spinner_item);
         spinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         fusionModeSelection.setAdapter(spinnerAdapter);
     }
 
     @Override
     protected void setup() {
+        showLog("Called setup");
         sensorFusion.configure()
                 .setMode(SensorFusion.Mode.NDOF)
                 .setAccRange(SensorFusion.AccRange.AR_16G)
                 .setGyroRange(SensorFusion.GyroRange.GR_2000DPS)
                 .commit();
 
-        if (srcIndex == 0) {
-            sensorFusion.routeData().fromQuaternions().stream(STREAM_KEY).commit()
-                    .onComplete(new AsyncOperation.CompletionHandler<RouteManager>() {
-                        @Override
-                        public void success(RouteManager result) {
-                            streamRouteManager= result;
-                            result.subscribe(STREAM_KEY, new RouteManager.MessageHandler() {
-                                @Override
-                                public void process(Message message) {
-                                    final Quaternion quaternion = message.getData(Quaternion.class);
+        sensorFusion.routeData().fromQuaternions().stream(STREAM_KEY).commit()
+                .onComplete(new AsyncOperation.CompletionHandler<RouteManager>() {
+                    @Override
+                    public void success(RouteManager result) {
+                        streamRouteManager = result;
+                        result.subscribe(STREAM_KEY, new RouteManager.MessageHandler() {
+                            @Override
+                            public void process(Message message) {
+                                final Quaternion quaternion = message.getData(Quaternion.class);
 
-                                    LineData data = chart.getData();
+                                showLog("Quaternion w - " + quaternion.w() + " x - " + quaternion.w() + " y - " + quaternion.w() + " z - " + quaternion.w());
 
-                                    data.addXValue(String.format(Locale.US, "%.2f", sampleCount * SAMPLING_PERIOD));
-                                    data.addEntry(new Entry(quaternion.w(), sampleCount), 0);
-                                    data.addEntry(new Entry(quaternion.x(), sampleCount), 1);
-                                    data.addEntry(new Entry(quaternion.y(), sampleCount), 2);
-                                    data.addEntry(new Entry(quaternion.z(), sampleCount), 3);
+                                LineData data = chart.getData();
 
-                                    sampleCount++;
-                                }
-                            });
+                                data.addXValue(String.format(Locale.US, "%.2f", sampleCount * SAMPLING_PERIOD));
+                                data.addEntry(new Entry(quaternion.w(), sampleCount), 0);
+                                data.addEntry(new Entry(quaternion.x(), sampleCount), 1);
+                                data.addEntry(new Entry(quaternion.y(), sampleCount), 2);
+                                data.addEntry(new Entry(quaternion.z(), sampleCount), 3);
 
-                            sensorFusion.start(SensorFusion.DataOutput.QUATERNION);
-                        }
-                    });
-        } else {
-            sensorFusion.routeData().fromEulerAngles().stream(STREAM_KEY).commit()
-                    .onComplete(new AsyncOperation.CompletionHandler<RouteManager>() {
-                        @Override
-                        public void success(RouteManager result) {
-                            streamRouteManager= result;
-                            result.subscribe(STREAM_KEY, new RouteManager.MessageHandler() {
-                                @Override
-                                public void process(Message message) {
-                                    final EulerAngle angles = message.getData(EulerAngle.class);
+                                sampleCount++;
 
-                                    LineData data = chart.getData();
+                            }
+                        });
 
-                                    data.addXValue(String.format(Locale.US, "%.2f", sampleCount * SAMPLING_PERIOD));
-                                    data.addEntry(new Entry(angles.heading(), sampleCount), 0);
-                                    data.addEntry(new Entry(angles.pitch(), sampleCount), 1);
-                                    data.addEntry(new Entry(angles.roll(), sampleCount), 2);
-                                    data.addEntry(new Entry(angles.yaw(), sampleCount), 3);
+                        sensorFusion.start(SensorFusion.DataOutput.QUATERNION);
+                    }
+                });
 
-                                    sampleCount++;
-                                }
-                            });
+        sensorFusion.routeData().fromEulerAngles().stream(STREAM_KEY_1).commit()
+                .onComplete(new AsyncOperation.CompletionHandler<RouteManager>() {
+                    @Override
+                    public void success(RouteManager result) {
+                        streamRouteManager = result;
+                        result.subscribe(STREAM_KEY_1, new RouteManager.MessageHandler() {
+                            @Override
+                            public void process(Message message) {
+                                final EulerAngle angles = message.getData(EulerAngle.class);
 
-                            sensorFusion.start(SensorFusion.DataOutput.EULER_ANGLES);
-                        }
-                    });
-        }
+                                showLog("EulerAngle Heading - " + angles.heading() + " Pitch - " + angles.pitch() + " Roll - " + angles.roll() + " Yaw - " + angles.yaw());
+
+                            }
+                        });
+
+                        sensorFusion.start(SensorFusion.DataOutput.EULER_ANGLES);
+                    }
+                });
     }
+
 
     @Override
     protected void clean() {
@@ -216,7 +214,7 @@ public class SensorFusionFragment extends SensorFragment {
             x3.clear();
         }
 
-        ArrayList<LineDataSet> spinAxisData= new ArrayList<>();
+        ArrayList<LineDataSet> spinAxisData = new ArrayList<>();
         spinAxisData.add(new LineDataSet(x0, srcIndex == 0 ? "w" : "heading"));
         spinAxisData.get(0).setColor(Color.BLACK);
         spinAxisData.get(0).setDrawCircles(false);
@@ -233,8 +231,8 @@ public class SensorFusionFragment extends SensorFragment {
         spinAxisData.get(3).setColor(Color.BLUE);
         spinAxisData.get(3).setDrawCircles(false);
 
-        LineData data= new LineData(chartXValues);
-        for(LineDataSet set: spinAxisData) {
+        LineData data = new LineData(chartXValues);
+        for (LineDataSet set : spinAxisData) {
             data.addDataSet(set);
         }
         data.setDrawValues(false);
@@ -249,5 +247,10 @@ public class SensorFusionFragment extends SensorFragment {
     @Override
     protected void fillHelpOptionAdapter(HelpOptionAdapter adapter) {
         adapter.add(new HelpOption(R.string.config_name_sensor_fusion_data, R.string.config_desc_sensor_fusion_data));
+    }
+
+
+    private void showLog(String message) {
+        Log.d("Ride", message);
     }
 }
