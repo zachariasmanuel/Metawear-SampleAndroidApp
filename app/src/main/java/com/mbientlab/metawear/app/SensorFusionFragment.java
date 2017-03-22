@@ -31,15 +31,20 @@
 
 package com.mbientlab.metawear.app;
 
-import android.content.Context;
+import android.Manifest;
+import android.content.pm.PackageManager;
 import android.graphics.Color;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
+import android.support.v4.app.ActivityCompat;
 import android.util.Log;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Spinner;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.github.mikephil.charting.components.YAxis;
 import com.github.mikephil.charting.data.Entry;
@@ -55,9 +60,14 @@ import com.mbientlab.metawear.module.SensorFusion;
 import com.mbientlab.metawear.module.SensorFusion.EulerAngle;
 import com.mbientlab.metawear.module.SensorFusion.Quaternion;
 
+import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.text.DateFormat;
 import java.util.ArrayList;
-import java.util.Calendar;
+import java.util.Date;
+import java.util.List;
 import java.util.Locale;
 
 /**
@@ -69,11 +79,14 @@ public class SensorFusionFragment extends SensorFragment {
     private static final String STREAM_KEY = "sensor_fusion_stream";
     private static final String STREAM_KEY_1 = "sensor_fusion_stream_1";
     private static final float SAMPLING_PERIOD = 1 / 100f;
+    private int mNumPoints = 0;
 
     private final ArrayList<Entry> x0 = new ArrayList<>(), x1 = new ArrayList<>(), x2 = new ArrayList<>(), x3 = new ArrayList<>();
     private SensorFusion sensorFusion;
     private Spinner fusionModeSelection;
     private int srcIndex = 0;
+    private List<String[]> dataSet = new ArrayList<>();
+    private String dataRow[] = new String[9];
 
     public SensorFusionFragment() {
         super(R.string.navigation_fragment_sensor_fusion, R.layout.fragment_sensor_config_spinner, -1f, 1f);
@@ -112,10 +125,20 @@ public class SensorFusionFragment extends SensorFragment {
         ArrayAdapter<CharSequence> spinnerAdapter = ArrayAdapter.createFromResource(getContext(), R.array.values_fusion_data, android.R.layout.simple_spinner_item);
         spinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         fusionModeSelection.setAdapter(spinnerAdapter);
+        askPermission();
+    }
+
+    private void askPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if ((getActivity().checkSelfPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) || getActivity().checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(getActivity(), new String[]{Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1);
+            }
+        }
     }
 
     @Override
     protected void setup() {
+        dataSet.clear();
         showLog("Called setup");
         sensorFusion.configure()
                 .setMode(SensorFusion.Mode.NDOF)
@@ -133,7 +156,8 @@ public class SensorFusionFragment extends SensorFragment {
                             public void process(Message message) {
                                 final Quaternion quaternion = message.getData(Quaternion.class);
 
-                                showLog("Quaternion w - " + quaternion.w() + " x - " + quaternion.w() + " y - " + quaternion.w() + " z - " + quaternion.w());
+                                mergeData(1, quaternion, null, 0);
+                                //showLog("Quaternion w - " + quaternion.w() + " x - " + quaternion.w() + " y - " + quaternion.w() + " z - " + quaternion.w());
 
                                 LineData data = chart.getData();
 
@@ -161,50 +185,109 @@ public class SensorFusionFragment extends SensorFragment {
                             @Override
                             public void process(Message message) {
                                 final EulerAngle angles = message.getData(EulerAngle.class);
-
-                                showLog("EulerAngle Heading - " + angles.heading() + " Pitch - " + angles.pitch() + " Roll - " + angles.roll() + " Yaw - " + angles.yaw());
-
+                                message.getTimestamp();
+                                mergeData(2, null, angles, message.getTimestamp().getTimeInMillis());
+                                //showLog("EulerAngle Heading - " + angles.heading() + " Pitch - " + angles.pitch() + " Roll - " + angles.roll() + " Yaw - " + angles.yaw());
                             }
                         });
-
                         sensorFusion.start(SensorFusion.DataOutput.EULER_ANGLES);
                     }
                 });
     }
 
 
+    private void mergeData(int type, Quaternion quaternion, EulerAngle angles, long timeStamp) {
+        //showLog("Called merge data");
+
+        if (type == 1 && mNumPoints == 0) {
+            //showLog("Type 1");
+            dataRow[0] = quaternion.w() + "";
+            dataRow[1] = quaternion.x() + "";
+            dataRow[2] = quaternion.y() + "";
+            dataRow[3] = quaternion.z() + "";
+            mNumPoints += 4;
+        } else if (type == 2 && mNumPoints == 4) {
+            //showLog("Type 2");
+            dataRow[4] = angles.heading() + "";
+            dataRow[5] = angles.pitch() + "";
+            dataRow[6] = angles.roll() + "";
+            dataRow[7] = angles.yaw() + "";
+            dataRow[8] = timeStamp + "";
+            mNumPoints += 5;
+        }
+
+        if (mNumPoints >= 9) {
+            mNumPoints = 0;
+            dataSet.add(dataRow);
+            //showLog("Output  - Quaternion w - " + dataRow[0] + " x - " + dataRow[1] + " y - " + dataRow[2] + " z - " + dataRow[3] + "Heading - " + dataRow[4] + " Pitch - " + dataRow[5] + " Roll - " + dataRow[6] + " Yaw - " + dataRow[7] + " Timestamp - " + dataRow[8]);
+            dataRow = new String[9];
+        }
+    }
+
+
     @Override
     protected void clean() {
+        showLog("Called clean");
         sensorFusion.stop();
     }
 
     @Override
     protected String saveData() {
-        final String CSV_HEADER = (srcIndex == 0 ? String.format("time,w,x,y,z%n") : String.format("time,heading,pitch,roll,yaw%n"));
-        String filename = String.format(Locale.US, "%s_%tY%<tm%<td-%<tH%<tM%<tS%<tL.csv", getContext().getString(sensorResId), Calendar.getInstance());
+        showLog("Called saveData");
+        writeFile();
+        return null;
+    }
+
+    public String writeFile() {
+        String csvData;
+        int count = 0;
+        csvData = "w,x,y,z,heading,pitch,roll,yaw,timestamp\n";
+        for (String data[] : dataSet) {
+            csvData = csvData + data[0] + "," + data[1] + "," + data[2] + "," + data[3] + "," + data[4] + "," + data[5] + "," + data[6] + "," + data[7] + "," + data[8] + "\n";
+            count++;
+        }
+        showLog(csvData);
+        String filename = DateFormat.getDateTimeInstance().format(new Date()) + ".csv";
+        writeToFile(csvData, filename);
+        resetData(true);
+        return count + "_" + filename;
+
+    }
+
+    public void writeToFile(String data, String name) {
+        File path = new File(Environment.getExternalStorageDirectory().getPath() + "/SensorFusedData/");
+
+        // Make sure the path directory exists.
+        if (!path.exists()) {
+            // Make it, if it doesn't exit
+            path.mkdirs();
+        }
+
+        final File file = new File(path, name);
+
+        // Save your stream, don't forget to flush() it before closing it.
 
         try {
-            FileOutputStream fos = getActivity().openFileOutput(filename, Context.MODE_PRIVATE);
-            fos.write(CSV_HEADER.getBytes());
+            file.createNewFile();
+            FileOutputStream fOut = new FileOutputStream(file);
+            OutputStreamWriter myOutWriter = new OutputStreamWriter(fOut);
+            myOutWriter.append(data);
 
-            LineData data = chart.getLineData();
-            LineDataSet x0DataSet = data.getDataSetByIndex(0), x1DataSet = data.getDataSetByIndex(1),
-                    x2DataSet = data.getDataSetByIndex(2), x3DataSet = data.getDataSetByIndex(3);
-            for (int i = 0; i < data.getXValCount(); i++) {
-                fos.write(String.format(Locale.US, "%.3f,%.3f,%.3f,%.3f,%.3f%n", (i * SAMPLING_PERIOD),
-                        x0DataSet.getEntryForXIndex(i).getVal(), x1DataSet.getEntryForXIndex(i).getVal(),
-                        x2DataSet.getEntryForXIndex(i).getVal(), x3DataSet.getEntryForXIndex(i).getVal()).getBytes());
-            }
-            fos.close();
-            return filename;
-        } catch (Exception e) {
-            e.printStackTrace();
-            return null;
+            myOutWriter.close();
+
+            fOut.flush();
+            fOut.close();
+            showLog("File wrote successfully - " + file.getAbsolutePath());
+            Toast.makeText(getActivity(), "File wrote successfully - " + file.getAbsolutePath(), Toast.LENGTH_SHORT).show();
+        } catch (IOException e) {
+            Log.e("Exception", "File write failed: " + e.toString());
         }
     }
 
     @Override
     protected void resetData(boolean clearData) {
+        dataSet.clear();
+        showLog("Called resetData");
         if (clearData) {
             sampleCount = 0;
             chartXValues.clear();
