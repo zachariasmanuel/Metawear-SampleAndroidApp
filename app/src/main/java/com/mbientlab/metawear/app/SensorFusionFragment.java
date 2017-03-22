@@ -34,7 +34,6 @@ package com.mbientlab.metawear.app;
 import android.content.Context;
 import android.graphics.Color;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
@@ -62,6 +61,7 @@ import java.util.Locale;
 
 /**
  * Created by etsai on 11/23/16.
+ * Edited by Zac on 03/22/17
  */
 
 public class SensorFusionFragment extends SensorFragment {
