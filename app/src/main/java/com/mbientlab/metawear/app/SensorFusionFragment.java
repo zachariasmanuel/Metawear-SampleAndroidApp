@@ -56,6 +56,7 @@ import com.mbientlab.metawear.RouteManager;
 import com.mbientlab.metawear.UnsupportedModuleException;
 import com.mbientlab.metawear.app.help.HelpOption;
 import com.mbientlab.metawear.app.help.HelpOptionAdapter;
+import com.mbientlab.metawear.data.CartesianFloat;
 import com.mbientlab.metawear.module.SensorFusion;
 import com.mbientlab.metawear.module.SensorFusion.EulerAngle;
 import com.mbientlab.metawear.module.SensorFusion.Quaternion;
@@ -138,6 +139,8 @@ public class SensorFusionFragment extends SensorFragment {
 
     @Override
     protected void setup() {
+
+
         dataSet.clear();
         showLog("Called setup");
         sensorFusion.configure()
@@ -156,7 +159,7 @@ public class SensorFusionFragment extends SensorFragment {
                             public void process(Message message) {
                                 final Quaternion quaternion = message.getData(Quaternion.class);
 
-                                mergeData(1, quaternion, null, 0);
+                               // mergeData(1, quaternion, null, 0);
                                 //showLog("Quaternion w - " + quaternion.w() + " x - " + quaternion.w() + " y - " + quaternion.w() + " z - " + quaternion.w());
 
                                 LineData data = chart.getData();
@@ -172,16 +175,16 @@ public class SensorFusionFragment extends SensorFragment {
                             }
                         });
 
-                        sensorFusion.start(SensorFusion.DataOutput.QUATERNION);
+                        //sensorFusion.start(SensorFusion.DataOutput.QUATERNION);
                     }
                 });
 
-        sensorFusion.routeData().fromEulerAngles().stream(STREAM_KEY_1).commit()
+        sensorFusion.routeData().fromEulerAngles().stream(STREAM_KEY).commit()
                 .onComplete(new AsyncOperation.CompletionHandler<RouteManager>() {
                     @Override
                     public void success(RouteManager result) {
                         streamRouteManager = result;
-                        result.subscribe(STREAM_KEY_1, new RouteManager.MessageHandler() {
+                        result.subscribe(STREAM_KEY, new RouteManager.MessageHandler() {
                             @Override
                             public void process(Message message) {
                                 final EulerAngle angles = message.getData(EulerAngle.class);
@@ -193,34 +196,56 @@ public class SensorFusionFragment extends SensorFragment {
                         sensorFusion.start(SensorFusion.DataOutput.EULER_ANGLES);
                     }
                 });
+
+
+        sensorFusion.routeData().fromLinearAcceleration().stream(STREAM_KEY_1).commit()
+                .onComplete(new AsyncOperation.CompletionHandler<RouteManager>() {
+                    @Override
+                    public void success(RouteManager result) {
+                        streamRouteManager = result;
+                        result.subscribe(STREAM_KEY_1, new RouteManager.MessageHandler() {
+                            @Override
+                            public void process(Message message) {
+                                //Accelerometer an = message.getData();
+
+                                CartesianFloat cartesianFloat = message.getData(CartesianFloat.class);
+                                //showLog("LinearAcceleration X - " + cartesianFloat.x() + " Y - " + cartesianFloat.y() + " Z - " + cartesianFloat.z());
+                                //final EulerAngle angles = message.getData(. class);
+                                //message.getTimestamp();
+                                mergeData(1, cartesianFloat, null, message.getTimestamp().getTimeInMillis());
+                                //showLog("EulerAngle Heading - " + angles.heading() + " Pitch - " + angles.pitch() + " Roll - " + angles.roll() + " Yaw - " + angles.yaw());
+                            }
+                        });
+                        sensorFusion.start(SensorFusion.DataOutput.LINEAR_ACC);
+                    }
+                });
     }
 
 
-    private void mergeData(int type, Quaternion quaternion, EulerAngle angles, long timeStamp) {
+    private void mergeData(int type, CartesianFloat cartesianFloat, EulerAngle angles, long timeStamp) {
         //showLog("Called merge data");
 
         if (type == 1 && mNumPoints == 0) {
             //showLog("Type 1");
-            dataRow[0] = quaternion.w() + "";
-            dataRow[1] = quaternion.x() + "";
-            dataRow[2] = quaternion.y() + "";
-            dataRow[3] = quaternion.z() + "";
-            mNumPoints += 4;
-        } else if (type == 2 && mNumPoints == 4) {
+            dataRow[0] = cartesianFloat.x() + "";
+            dataRow[1] = cartesianFloat.y() + "";
+            dataRow[2] = cartesianFloat.z() + "";
+            mNumPoints += 3;
+        } else if (type == 2 && mNumPoints == 3) {
             //showLog("Type 2");
-            dataRow[4] = angles.heading() + "";
-            dataRow[5] = angles.pitch() + "";
-            dataRow[6] = angles.roll() + "";
-            dataRow[7] = angles.yaw() + "";
-            dataRow[8] = timeStamp + "";
+            dataRow[3] = angles.heading() + "";
+            dataRow[4] = angles.pitch() + "";
+            dataRow[5] = angles.roll() + "";
+            dataRow[6] = angles.yaw() + "";
+            dataRow[7] = timeStamp + "";
             mNumPoints += 5;
         }
 
-        if (mNumPoints >= 9) {
+        if (mNumPoints >= 8) {
             mNumPoints = 0;
             dataSet.add(dataRow);
-            //showLog("Output  - Quaternion w - " + dataRow[0] + " x - " + dataRow[1] + " y - " + dataRow[2] + " z - " + dataRow[3] + "Heading - " + dataRow[4] + " Pitch - " + dataRow[5] + " Roll - " + dataRow[6] + " Yaw - " + dataRow[7] + " Timestamp - " + dataRow[8]);
-            dataRow = new String[9];
+            showLog("Output  - LinearAcceleration x - " + dataRow[0] + " y - " + dataRow[1] + " z - " + dataRow[2] +  " Heading - " + dataRow[3] + " Pitch - " + dataRow[4] + " Roll - " + dataRow[5] + " Yaw - " + dataRow[6] + " Timestamp - " + dataRow[7]);
+            dataRow = new String[8];
         }
     }
 
@@ -241,9 +266,9 @@ public class SensorFusionFragment extends SensorFragment {
     public String writeFile() {
         String csvData;
         int count = 0;
-        csvData = "w,x,y,z,heading,pitch,roll,yaw,timestamp\n";
+        csvData = "linear_x,linear_y,linear_z,heading,pitch,roll,yaw,timestamp\n";
         for (String data[] : dataSet) {
-            csvData = csvData + data[0] + "," + data[1] + "," + data[2] + "," + data[3] + "," + data[4] + "," + data[5] + "," + data[6] + "," + data[7] + "," + data[8] + "\n";
+            csvData = csvData + data[0] + "," + data[1] + "," + data[2] + "," + data[3] + "," + data[4] + "," + data[5] + "," + data[6] + "," + data[7]+ "\n";
             count++;
         }
         showLog(csvData);
