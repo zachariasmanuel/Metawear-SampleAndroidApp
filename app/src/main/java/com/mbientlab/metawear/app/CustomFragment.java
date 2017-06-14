@@ -32,16 +32,25 @@
 package com.mbientlab.metawear.app;
 
 import android.Manifest;
+import android.app.Activity;
+import android.content.BroadcastReceiver;
+import android.content.ComponentName;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.IBinder;
 import android.support.v4.app.ActivityCompat;
 import android.util.Log;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
+import android.widget.EditText;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -56,6 +65,7 @@ import com.mbientlab.metawear.RouteManager;
 import com.mbientlab.metawear.UnsupportedModuleException;
 import com.mbientlab.metawear.app.help.HelpOption;
 import com.mbientlab.metawear.app.help.HelpOptionAdapter;
+import com.mbientlab.metawear.app.rideblock.UsbService;
 import com.mbientlab.metawear.data.CartesianFloat;
 import com.mbientlab.metawear.module.SensorFusion;
 import com.mbientlab.metawear.module.SensorFusion.EulerAngle;
@@ -68,6 +78,7 @@ import java.text.DateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Created by etsai on 11/23/16.
@@ -91,6 +102,51 @@ public class CustomFragment extends SensorFragment {
     public CustomFragment() {
         super(R.string.navigation_fragment_sensor_fusion, R.layout.fragment_sensor_config_spinner, -1f, 1f);
     }
+
+
+    /*
+     * Notifications from UsbService will be received here.
+     */
+    private final BroadcastReceiver mUsbReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            switch (intent.getAction()) {
+                case UsbService.ACTION_USB_PERMISSION_GRANTED: // USB PERMISSION GRANTED
+                    Toast.makeText(context, "USB Ready", Toast.LENGTH_SHORT).show();
+                    break;
+                case UsbService.ACTION_USB_PERMISSION_NOT_GRANTED: // USB PERMISSION NOT GRANTED
+                    Toast.makeText(context, "USB Permission not granted", Toast.LENGTH_SHORT).show();
+                    break;
+                case UsbService.ACTION_NO_USB: // NO USB CONNECTED
+                    Toast.makeText(context, "No USB connected", Toast.LENGTH_SHORT).show();
+                    break;
+                case UsbService.ACTION_USB_DISCONNECTED: // USB DISCONNECTED
+                    Toast.makeText(context, "USB disconnected", Toast.LENGTH_SHORT).show();
+                    break;
+                case UsbService.ACTION_USB_NOT_SUPPORTED: // USB NOT SUPPORTED
+                    Toast.makeText(context, "USB device not supported", Toast.LENGTH_SHORT).show();
+                    break;
+            }
+        }
+    };
+    private UsbService usbService;
+    private TextView display;
+    private EditText editText;
+
+    private Activity myActivity;
+    private final ServiceConnection usbConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName arg0, IBinder arg1) {
+            usbService = ((UsbService.UsbBinder) arg1).getService();
+            //usbService.setHandler(mHandler);
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName arg0) {
+            usbService = null;
+        }
+    };
+
 
     @Override
     public void onViewCreated(final View view, Bundle savedInstanceState) {
@@ -122,11 +178,54 @@ public class CustomFragment extends SensorFragment {
             }
         });
 
+
         ArrayAdapter<CharSequence> spinnerAdapter = ArrayAdapter.createFromResource(getContext(), R.array.values_fusion_data, android.R.layout.simple_spinner_item);
         spinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         fusionModeSelection.setAdapter(spinnerAdapter);
         askPermission();
     }
+
+    //USB serial setup
+    @Override
+    public void onResume() {
+        super.onResume();
+        setFilters();  // Start listening notifications from UsbService
+        startService(UsbService.class, usbConnection, null); // Start UsbService(if it was not started before) and Bind it
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        getActivity().unregisterReceiver(mUsbReceiver);
+        getActivity().unbindService(usbConnection);
+    }
+
+    private void startService(Class<?> service, ServiceConnection serviceConnection, Bundle extras) {
+        if (!UsbService.SERVICE_CONNECTED) {
+            Intent startService = new Intent(getActivity(), service);
+            if (extras != null && !extras.isEmpty()) {
+                Set<String> keys = extras.keySet();
+                for (String key : keys) {
+                    String extra = extras.getString(key);
+                    startService.putExtra(key, extra);
+                }
+            }
+            getActivity().startService(startService);
+        }
+        Intent bindingIntent = new Intent(getActivity(), service);
+        getActivity().bindService(bindingIntent, serviceConnection, Context.BIND_AUTO_CREATE);
+    }
+
+    private void setFilters() {
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(UsbService.ACTION_USB_PERMISSION_GRANTED);
+        filter.addAction(UsbService.ACTION_NO_USB);
+        filter.addAction(UsbService.ACTION_USB_DISCONNECTED);
+        filter.addAction(UsbService.ACTION_USB_NOT_SUPPORTED);
+        filter.addAction(UsbService.ACTION_USB_PERMISSION_NOT_GRANTED);
+        getActivity().registerReceiver(mUsbReceiver, filter);
+    }
+
 
     private void askPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -191,6 +290,10 @@ public class CustomFragment extends SensorFragment {
                                 message.getTimestamp();
                                 showLog("Corrected Accelero X - " + accelero.x() + " Y - " + accelero.y() + " Z - " + accelero.z());
 
+                                String output = "Accelero X - " + accelero.x() + " Y - " + accelero.y() + " Z - " + accelero.z();
+
+
+                                mergeData(1, accelero.x(),accelero.y(),accelero.z());
                                 //mergeData(2, null, angles, message.getTimestamp().getTimeInMillis());
                                 //showLog("EulerAngle Heading - " + angles.heading() + " Pitch - " + angles.pitch() + " Roll - " + angles.roll() + " Yaw - " + angles.yaw());
                             }
@@ -212,6 +315,7 @@ public class CustomFragment extends SensorFragment {
                                 message.getTimestamp();
                                 showLog("Corrected Gyro X - " + gyro.x() + " Y - " + gyro.y() + " Z - " + gyro.z());
 
+                                mergeData(2, gyro.x(),gyro.y(),gyro.z());
                                 //mergeData(2, null, angles, message.getTimestamp().getTimeInMillis());
                                 //showLog("EulerAngle Heading - " + angles.heading() + " Pitch - " + angles.pitch() + " Roll - " + angles.roll() + " Yaw - " + angles.yaw());
                             }
@@ -233,6 +337,7 @@ public class CustomFragment extends SensorFragment {
                                 message.getTimestamp();
                                 showLog("Corrected Magneto X - " + magneto.x() + " Y - " + magneto.y() + " Z - " + magneto.z());
 
+                                mergeData(3, magneto.x(),magneto.y(),magneto.z());
                                 //mergeData(2, null, angles, message.getTimestamp().getTimeInMillis());
                                 //showLog("EulerAngle Heading - " + angles.heading() + " Pitch - " + angles.pitch() + " Roll - " + angles.roll() + " Yaw - " + angles.yaw());
                             }
@@ -263,6 +368,39 @@ public class CustomFragment extends SensorFragment {
                         sensorFusion.start(SensorFusion.DataOutput.LINEAR_ACC);
                     }
                 });*/
+    }
+
+
+    private void mergeData(int type, float x, float y, float z){
+        //accelero
+        if(type == 1 && mNumPoints == 0){
+            dataRow[0] = x+"";
+            dataRow[1] = y+"";
+            dataRow[2] = z+"";
+            mNumPoints += 3;
+        }
+        //gyro
+        else if (type == 2 && mNumPoints == 3){
+            dataRow[3] = x+"";
+            dataRow[4] = y+"";
+            dataRow[5] = z+"";
+            mNumPoints += 3;
+        }
+        //magneto
+        else if (type == 3 && mNumPoints == 6){
+            dataRow[6] = x+"";
+            dataRow[7] = y+"";
+            dataRow[8] = z+"";
+            mNumPoints +=3;
+        }
+
+        if(mNumPoints>=9){
+            mNumPoints = 0;
+            String data = dataRow[0]+","+dataRow[1]+","+dataRow[2]+",,"+dataRow[3]+","+dataRow[4]+","+dataRow[5]+",,"+dataRow[6]+","+dataRow[7]+","+dataRow[8]+"\n";
+            if (usbService != null) { // if UsbService was correctly binded, Send data
+                usbService.write(data.getBytes());
+            }
+        }
     }
 
 
