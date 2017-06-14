@@ -45,6 +45,7 @@ import android.preference.PreferenceManager;
 import android.provider.MediaStore;
 import android.support.annotation.NonNull;
 import android.support.design.widget.FloatingActionButton;
+import android.support.design.widget.NavigationView;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.DialogFragment;
 import android.support.v4.app.Fragment;
@@ -53,10 +54,9 @@ import android.support.v4.app.FragmentTransaction;
 import android.support.v4.app.LoaderManager;
 import android.support.v4.content.CursorLoader;
 import android.support.v4.content.Loader;
-import android.support.v7.app.ActionBar;
-import android.support.design.widget.NavigationView;
 import android.support.v4.view.GravityCompat;
 import android.support.v4.widget.DrawerLayout;
+import android.support.v7.app.ActionBar;
 import android.support.v7.app.ActionBarDrawerToggle;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
@@ -72,7 +72,6 @@ import com.mbientlab.metawear.MetaWearBoard.ConnectionStateHandler;
 import com.mbientlab.metawear.UnsupportedModuleException;
 import com.mbientlab.metawear.app.ModuleFragmentBase.FragmentBus;
 import com.mbientlab.metawear.module.Debug;
-import com.mbientlab.metawear.module.SensorFusion;
 
 import java.io.File;
 import java.util.Collections;
@@ -114,6 +113,7 @@ public class NavigationActivity extends AppCompatActivity implements NavigationV
         tempMap.put(R.id.nav_sensor_fusion, SensorFusionFragment.class);
         tempMap.put(R.id.nav_settings, SettingsFragment.class);
         tempMap.put(R.id.nav_temperature, TemperatureFragment.class);
+        tempMap.put(R.id.nav_custom, CustomFragment.class);
         FRAGMENT_CLASSES= Collections.unmodifiableMap(tempMap);
 
         EXTENSION_TO_APP_TYPE= new HashMap<>();

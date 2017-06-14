@@ -74,9 +74,10 @@ import java.util.List;
  * Edited by Zac on 03/22/17
  */
 
-public class SensorFusionFragment extends SensorFragment {
+public class CustomFragment extends SensorFragment {
     private static final String STREAM_KEY = "sensor_fusion_stream";
     private static final String STREAM_KEY_1 = "sensor_fusion_stream_1";
+    private static final String STREAM_KEY_2 = "sensor_fusion_stream_2";
     private static final float SAMPLING_PERIOD = 1 / 100f;
     private int mNumPoints = 0;
 
@@ -87,7 +88,7 @@ public class SensorFusionFragment extends SensorFragment {
     private List<String[]> dataSet = new ArrayList<>();
     private String dataRow[] = new String[9];
 
-    public SensorFusionFragment() {
+    public CustomFragment() {
         super(R.string.navigation_fragment_sensor_fusion, R.layout.fragment_sensor_config_spinner, -1f, 1f);
     }
 
@@ -177,8 +178,8 @@ public class SensorFusionFragment extends SensorFragment {
                     }
                 });*/
 
-
-        sensorFusion.routeData().fromEulerAngles().stream(STREAM_KEY).commit()
+        //accelro
+        sensorFusion.routeData().fromCorrectedAcc().stream(STREAM_KEY).commit()
                 .onComplete(new AsyncOperation.CompletionHandler<RouteManager>() {
                     @Override
                     public void success(RouteManager result) {
@@ -186,18 +187,62 @@ public class SensorFusionFragment extends SensorFragment {
                         result.subscribe(STREAM_KEY, new RouteManager.MessageHandler() {
                             @Override
                             public void process(Message message) {
-                                final EulerAngle angles = message.getData(EulerAngle.class);
+                                final SensorFusion.CorrectedCartesianFloat accelero = message.getData(SensorFusion.CorrectedCartesianFloat.class);
                                 message.getTimestamp();
-                                mergeData(2, null, angles, message.getTimestamp().getTimeInMillis());
+                                showLog("Corrected Accelero X - " + accelero.x() + " Y - " + accelero.y() + " Z - " + accelero.z());
+
+                                //mergeData(2, null, angles, message.getTimestamp().getTimeInMillis());
                                 //showLog("EulerAngle Heading - " + angles.heading() + " Pitch - " + angles.pitch() + " Roll - " + angles.roll() + " Yaw - " + angles.yaw());
                             }
                         });
-                        sensorFusion.start(SensorFusion.DataOutput.EULER_ANGLES);
+                        sensorFusion.start(SensorFusion.DataOutput.CORRECTED_ACC);
+                    }
+                });
+
+        //gyro
+        sensorFusion.routeData().fromCorrectedGyro().stream(STREAM_KEY_1).commit()
+                .onComplete(new AsyncOperation.CompletionHandler<RouteManager>() {
+                    @Override
+                    public void success(RouteManager result) {
+                        streamRouteManager = result;
+                        result.subscribe(STREAM_KEY_1, new RouteManager.MessageHandler() {
+                            @Override
+                            public void process(Message message) {
+                                final SensorFusion.CorrectedCartesianFloat gyro = message.getData(SensorFusion.CorrectedCartesianFloat.class);
+                                message.getTimestamp();
+                                showLog("Corrected Gyro X - " + gyro.x() + " Y - " + gyro.y() + " Z - " + gyro.z());
+
+                                //mergeData(2, null, angles, message.getTimestamp().getTimeInMillis());
+                                //showLog("EulerAngle Heading - " + angles.heading() + " Pitch - " + angles.pitch() + " Roll - " + angles.roll() + " Yaw - " + angles.yaw());
+                            }
+                        });
+                        sensorFusion.start(SensorFusion.DataOutput.CORRECTED_GYRO);
+                    }
+                });
+
+        //magneto
+        sensorFusion.routeData().fromCorrectedMag().stream(STREAM_KEY_2).commit()
+                .onComplete(new AsyncOperation.CompletionHandler<RouteManager>() {
+                    @Override
+                    public void success(RouteManager result) {
+                        streamRouteManager = result;
+                        result.subscribe(STREAM_KEY_2, new RouteManager.MessageHandler() {
+                            @Override
+                            public void process(Message message) {
+                                final SensorFusion.CorrectedCartesianFloat magneto = message.getData(SensorFusion.CorrectedCartesianFloat.class);
+                                message.getTimestamp();
+                                showLog("Corrected Magneto X - " + magneto.x() + " Y - " + magneto.y() + " Z - " + magneto.z());
+
+                                //mergeData(2, null, angles, message.getTimestamp().getTimeInMillis());
+                                //showLog("EulerAngle Heading - " + angles.heading() + " Pitch - " + angles.pitch() + " Roll - " + angles.roll() + " Yaw - " + angles.yaw());
+                            }
+                        });
+                        sensorFusion.start(SensorFusion.DataOutput.CORRECTED_MAG);
                     }
                 });
 
 
-        sensorFusion.routeData().fromLinearAcceleration().stream(STREAM_KEY_1).commit()
+        /*sensorFusion.routeData().fromLinearAcceleration().stream(STREAM_KEY_1).commit()
                 .onComplete(new AsyncOperation.CompletionHandler<RouteManager>() {
                     @Override
                     public void success(RouteManager result) {
@@ -211,13 +256,13 @@ public class SensorFusionFragment extends SensorFragment {
                                 showLog("LinearAcceleration X - " + cartesianFloat.x() + " Y - " + cartesianFloat.y() + " Z - " + cartesianFloat.z());
                                 //final EulerAngle angles = message.getData(. class);
                                 //message.getTimestamp();
-                                mergeData(1, cartesianFloat, null, message.getTimestamp().getTimeInMillis());
+                                //mergeData(1, cartesianFloat, null, message.getTimestamp().getTimeInMillis());
                                 //showLog("EulerAngle Heading - " + angles.heading() + " Pitch - " + angles.pitch() + " Roll - " + angles.roll() + " Yaw - " + angles.yaw());
                             }
                         });
                         sensorFusion.start(SensorFusion.DataOutput.LINEAR_ACC);
                     }
-                });
+                });*/
     }
 
 
@@ -267,7 +312,7 @@ public class SensorFusionFragment extends SensorFragment {
         int count = 0;
         csvData = "linear_x,linear_y,linear_z,heading,pitch,roll,yaw,timestamp\n";
         for (String data[] : dataSet) {
-            csvData = csvData + data[0] + "," + data[1] + "," + data[2] + "," + data[3] + "," + data[4] + "," + data[5] + "," + data[6] + "," + data[7]+ "\n";
+            csvData = csvData + data[0] + "," + data[1] + "," + data[2] + "," + data[3] + "," + data[4] + "," + data[5] + "," + data[6] + "," + data[7] + "\n";
             count++;
         }
         showLog(csvData);
